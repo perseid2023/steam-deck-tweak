@@ -1,4 +1,3 @@
-# steam-deck-tweak
 
 Modified ZRAM value to use the size of available memory
 
