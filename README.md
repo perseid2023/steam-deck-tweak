@@ -1,10 +1,10 @@
+do not use this tweak! it will make your steam deck slow and crash often !  
 
-Modified ZRAM value to use the size of available memory
-
-Add an 8GB disk swapfile as backup
-
-Makes Linux handle memory pressure better
-
-Forces CPU into performance mode
-
-Applies modern Linux memory optimizations
+- change zram-size to `zram-size = ram`  
+- add an 8GB disk swapfile as backup  
+- change swappiness value to 200
+- set cpu governor to performance
+- enable MGLRU
+- configure memlock limits to 2GB
+- enable ntsync kernel module
+- disable CPU security mitigations (optional)
