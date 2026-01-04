@@ -46,9 +46,9 @@ fi
 
 # 6. Configure swappiness
 SYSCTL_CONF="/etc/sysctl.d/99-swappiness.conf"
-echo "[6/13] Setting vm.swappiness=200..."
+echo "[6/13] Setting vm.swappiness=10..."
 sudo tee "$SYSCTL_CONF" > /dev/null <<EOF
-vm.swappiness=200
+vm.swappiness=10
 EOF
 
 # 7. CPU performance governor systemd service
