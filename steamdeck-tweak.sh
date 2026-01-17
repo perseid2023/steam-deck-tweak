@@ -8,6 +8,7 @@ echo "[1/14] Disabling SteamOS readonly mode..."
 sudo steamos-readonly disable
 
 # 2. Configure zram-generator (DISABLE ZRAM)
+# SteamOS uses zram by default; we set size to 0 to ensure it doesn't conflict with zswap
 ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
 echo "[2/14] Writing zram-generator configuration (zram disabled)..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
@@ -18,19 +19,31 @@ swap-priority = 100
 fs-type = swap
 EOF
 
-# 3. Enable ZSWAP (Using tmpfiles.d instead of GRUB)
-echo "[3/14] Configuring zswap via tmpfiles.d (SteamOS persistent method)..."
-ZSWAP_TMP_CONF="/etc/tmpfiles.d/zswap.conf"
-sudo tee "$ZSWAP_TMP_CONF" > /dev/null <<EOF
-# Setting zswap parameters at boot (SteamOS Compatible)
-w /sys/module/zswap/parameters/enabled - - - - 1
-w /sys/module/zswap/parameters/compressor - - - - zstd
-w /sys/module/zswap/parameters/zpool - - - - zsmalloc
-w /sys/module/zswap/parameters/max_pool_percent - - - - 25
+# 3. Enable ZSWAP (Using Systemd Service for Persistence)
+echo "[3/14] Configuring zswap via systemd service..."
+ZSWAP_SERVICE="/etc/systemd/system/zswap-configure.service"
+
+sudo tee "$ZSWAP_SERVICE" > /dev/null <<EOF
+[Unit]
+Description=Configure zswap parameters at boot
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/bash -c 'echo zstd > /sys/module/zswap/parameters/compressor'
+ExecStart=/usr/bin/bash -c 'echo zsmalloc > /sys/module/zswap/parameters/zpool'
+ExecStart=/usr/bin/bash -c 'echo 25 > /sys/module/zswap/parameters/max_pool_percent'
+ExecStart=/usr/bin/bash -c 'echo 1 > /sys/module/zswap/parameters/enabled'
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
-# Apply zswap settings immediately
-sudo systemd-tmpfiles --create "$ZSWAP_TMP_CONF"
+sudo systemctl daemon-reload
+sudo systemctl enable zswap-configure.service
+# Apply immediately
+sudo systemctl start zswap-configure.service
 
 # 4. Create swapfile
 SWAPFILE="/home/swapfile2"
@@ -98,10 +111,9 @@ EOF
 echo "[12/14] Enabling ntsync kernel module..."
 echo ntsync | sudo tee /etc/modules-load.d/ntsync.conf > /dev/null
 
-# 13. Disable CPU security mitigations (Note: This still requires a bootloader)
+# 13. Disable CPU security mitigations
 echo
 echo "[13/14] OPTIONAL: Disable CPU security mitigations"
-echo "NOTE: This remains in /etc/default/grub as there is no other way to set it."
 read -r -p "Disable mitigations (mitigations=off)? [y/N]: " MITIGATIONS_CHOICE
 
 if [[ "$MITIGATIONS_CHOICE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
@@ -109,7 +121,9 @@ if [[ "$MITIGATIONS_CHOICE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     if ! grep -q "mitigations=off" "$GRUB_FILE"; then
         echo "Applying mitigations=off to GRUB..."
         sudo sed -i 's/\bGRUB_CMDLINE_LINUX_DEFAULT="/&mitigations=off /' "$GRUB_FILE"
-        sudo grub-mkconfig -o /boot/efi/EFI/steamos/grub.cfg || echo "Warning: grub-mkconfig failed, but zswap will still work via tmpfiles."
+        # On SteamOS, standard update-grub might not work as expected,
+        # but this is the best attempt for this specific flag.
+        sudo grub-mkconfig -o /boot/efi/EFI/steamos/grub.cfg || echo "Warning: grub-mkconfig failed."
     else
         echo "mitigations=off already present in GRUB config."
     fi
