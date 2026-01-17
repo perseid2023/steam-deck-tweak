@@ -1,7 +1,8 @@
 do not use this tweak ! it will make your steam deck slow and crash often !  
 
-- change zram-size to `zram-size = ram`  
-- add an 8GB disk swapfile as backup  
+- disable zram
+- enable zswap  
+- add an 8GB disk swapfile  
 - set swappiness to 10
 - set cpu governor to performance
 - enable MGLRU
@@ -10,7 +11,8 @@ do not use this tweak ! it will make your steam deck slow and crash often !
 - disable CPU security mitigations (optional)
 
 check if swap and zram enabled : `swapon --show`  
-check zram : `zramctl`  
+check zram : `zramctl`
+check zswap : `grep -r . /sys/module/zswap/parameters/enabled` and `grep -r . /sys/kernel/debug/zswap/`
 check swappiness : `sysctl vm.swappiness`  
 check if ntsync kernel module is loaded : `lsmod | grep ntsync`  
 check if a game is using ntsync : `lsof /dev/ntsync`
