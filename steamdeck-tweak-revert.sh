@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-echo "=== Reverting Tweaks & Restoring ZRAM (RAM/2) ==="
+echo "=== Reverting SteamOS Tweaks and Restoring ZRAM (RAM/2) ==="
 
-# 1. Restore ZRAM-Generator to 50% of RAM
+# 1. Re-enable ZRAM with requested size (zram/2)
 ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
-echo "[1/10] Restoring ZRAM to 50% of total RAM..."
+echo "[1/13] Restoring ZRAM configuration to RAM/2..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
 zram-size = ram / 2
@@ -13,63 +13,66 @@ compression-algorithm = zstd
 swap-priority = 100
 fs-type = swap
 EOF
+# Restart ZRAM generator
+sudo systemctl daemon-reload
+sudo systemctl start /dev/zram0 || echo "Note: ZRAM will fully apply after reboot."
 
-# 2. Disable ZSWAP (Delete the tmpfiles config and turn off)
-echo "[2/10] Disabling ZSWAP tweaks..."
-sudo rm -f /etc/tmpfiles.d/zswap.conf
-echo 0 | sudo tee /sys/module/zswap/parameters/enabled > /dev/null
+# 2. Disable and Remove ZSWAP Service
+echo "[2/13] Removing zswap configuration service..."
+sudo systemctl stop zswap-configure.service || true
+sudo systemctl disable zswap-configure.service || true
+sudo rm -f /etc/systemd/system/zswap-configure.service
 
-# 3. Remove Swapfile
+# 3. Disable and Remove Swapfile
 SWAPFILE="/home/swapfile2"
 if [ -f "$SWAPFILE" ]; then
-    echo "[3/10] Disabling and removing swapfile ($SWAPFILE)..."
+    echo "[3/13] Disabling and removing swapfile..."
     sudo swapoff "$SWAPFILE" || true
     sudo rm -f "$SWAPFILE"
-    # Remove specifically the line matching our swapfile from fstab
-    sudo sed -i "\|$SWAPFILE|d" /etc/fstab
-else
-    echo "[3/10] No swapfile found to remove."
 fi
 
-# 4. Remove Swappiness tweak
-echo "[4/10] Removing swappiness configuration..."
+# 4. Remove Swapfile from fstab
+echo "[4/13] Removing swapfile entry from /etc/fstab..."
+sudo sed -i "\|$SWAPFILE|d" /etc/fstab
+
+# 5. Remove swappiness override
+echo "[5/13] Removing swappiness configuration..."
 sudo rm -f /etc/sysctl.d/99-swappiness.conf
 
-# 5. Disable and Remove CPU Performance Service
-echo "[5/10] Removing CPU performance service..."
-sudo systemctl disable cpu_performance.service --now || true
+# 6. Disable and Remove CPU Performance Service
+echo "[6/13] Removing CPU performance governor service..."
+sudo systemctl stop cpu_performance.service || true
+sudo systemctl disable cpu_performance.service || true
 sudo rm -f /etc/systemd/system/cpu_performance.service
 
-# 6. Remove MGLRU tweak
-echo "[6/10] Removing MGLRU configuration..."
+# 7. Remove MGLRU tweaks
+echo "[7/13] Removing MGLRU configuration..."
 sudo rm -f /etc/tmpfiles.d/mglru.conf
 
-# 7. Remove Memlock limits
-echo "[7/10] Removing memlock limits..."
+# 8. Remove memlock limits
+echo "[8/13] Removing memlock limits..."
 sudo rm -f /etc/security/limits.d/memlock.conf
 
-# 8. Remove ntsync module load
-echo "[8/10] Removing ntsync configuration..."
+# 9. Remove ntsync kernel module auto-load
+echo "[9/13] Removing ntsync module configuration..."
 sudo rm -f /etc/modules-load.d/ntsync.conf
 
-# 9. Clean up GRUB (Remove all instances of mitigations=off)
-echo "[9/10] Cleaning up /etc/default/grub..."
+# 10. Re-enable CPU security mitigations (if applied)
 GRUB_FILE="/etc/default/grub"
-if [ -f "$GRUB_FILE" ]; then
-    # This removes all occurrences of mitigations=off and cleans up double spaces
-    sudo sed -i 's/mitigations=off//g' "$GRUB_FILE"
-    sudo sed -i 's/  / /g' "$GRUB_FILE"
-    sudo grub-mkconfig -o /boot/efi/EFI/steamos/grub.cfg || true
+if grep -q "mitigations=off" "$GRUB_FILE"; then
+    echo "[10/13] Re-enabling CPU security mitigations in GRUB..."
+    sudo sed -i 's/mitigations=off //' "$GRUB_FILE"
+    sudo grub-mkconfig -o /boot/efi/EFI/steamos/grub.cfg || echo "Warning: grub-mkconfig failed."
 fi
 
-# 10. Reload systemd and restart ZRAM
-echo "[10/10] Reloading systemd and starting ZRAM..."
+# 11. Final system reload
+echo "[11/13] Reloading system settings..."
 sudo systemctl daemon-reload
 sudo systemctl daemon-reexec
-# This forces the generator to run and create the zram0 device
-sudo systemctl stop systemd-zram-setup@zram0 || true
-sudo systemctl start systemd-zram-setup@zram0 || true
+sudo sysctl --system
 
-echo "=== Revert Complete. Reboot is recommended. ==="
-echo "Final Swap Status:"
-swapon --show
+# 12. Re-enable Read-only filesystem
+echo "[12/13] Re-enabling SteamOS readonly mode..."
+sudo steamos-readonly enable
+
+echo "[13/13] Revert complete. Please reboot your Steam Deck to ensure all changes (especially ZRAM and GRUB) are active."
