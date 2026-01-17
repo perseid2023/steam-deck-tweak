@@ -11,7 +11,7 @@ do not use this tweak ! it will make your steam deck slow and crash often !
 - disable CPU security mitigations (optional)
 
 check if swap and zram enabled : `swapon --show`  
-check zram : `zramctl`
+check zram : `zramctl`  
 check zswap : `grep -r . /sys/module/zswap/parameters/enabled` and `grep -r . /sys/kernel/debug/zswap/`  
 check swappiness : `sysctl vm.swappiness`  
 check if ntsync kernel module is loaded : `lsmod | grep ntsync`  
