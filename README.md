@@ -2,12 +2,12 @@ do not use this tweak ! it will make your steam deck slow and crash often !
 
 - disable zram
 - enable zswap  
-- add an 8GB disk swapfile  
+- add an 8GB swapfile  
 - set swappiness to 10
 - set cpu governor to performance
 - enable MGLRU
 - configure memlock limits to 2GB
-- enable ntsync kernel module (kernel 6.15+)
+- enable ntsync kernel module 
 - disable CPU security mitigations (optional)
 
 check if swap and zram enabled : `swapon --show`  
