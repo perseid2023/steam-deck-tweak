@@ -1,11 +1,15 @@
 #!/bin/bash
 set -e
 
-echo "=== Reverting SteamOS Tweaks and Restoring ZRAM (RAM/2) ==="
+echo "=== Reverting Performance Tweaks & Setting ZRAM to RAM/2 ==="
 
-# 1. Re-enable ZRAM with requested size (zram/2)
+# 1. Disable readonly filesystem to allow cleanup
+echo "[1/11] Disabling SteamOS readonly mode..."
+sudo steamos-readonly disable
+
+# 2. Update ZRAM instead of deleting (Set to RAM/2)
 ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
-echo "[1/13] Restoring ZRAM configuration to RAM/2..."
+echo "[2/11] Updating ZRAM configuration to RAM/2..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
 zram-size = ram / 2
@@ -13,66 +17,72 @@ compression-algorithm = zstd
 swap-priority = 100
 fs-type = swap
 EOF
-# Restart ZRAM generator
-sudo systemctl daemon-reload
-sudo systemctl start /dev/zram0 || echo "Note: ZRAM will fully apply after reboot."
 
-# 2. Disable and Remove ZSWAP Service
-echo "[2/13] Removing zswap configuration service..."
+# 3. Disable and remove ZSWAP service
+echo "[3/11] Removing ZSWAP service..."
 sudo systemctl stop zswap-configure.service || true
 sudo systemctl disable zswap-configure.service || true
 sudo rm -f /etc/systemd/system/zswap-configure.service
 
-# 3. Disable and Remove Swapfile
+# 4. Remove custom Swapfile
 SWAPFILE="/home/swapfile2"
 if [ -f "$SWAPFILE" ]; then
-    echo "[3/13] Disabling and removing swapfile..."
+    echo "[4/11] Removing 8GB swapfile..."
     sudo swapoff "$SWAPFILE" || true
     sudo rm -f "$SWAPFILE"
+    sudo sed -i "\|$SWAPFILE|d" /etc/fstab
+else
+    echo "[4/11] Custom swapfile not found, skipping."
 fi
 
-# 4. Remove Swapfile from fstab
-echo "[4/13] Removing swapfile entry from /etc/fstab..."
-sudo sed -i "\|$SWAPFILE|d" /etc/fstab
-
-# 5. Remove swappiness override
-echo "[5/13] Removing swappiness configuration..."
+# 5. Revert Swappiness (Back to default 60 or just remove custom file)
+echo "[5/11] Removing custom swappiness config..."
 sudo rm -f /etc/sysctl.d/99-swappiness.conf
 
-# 6. Disable and Remove CPU Performance Service
-echo "[6/13] Removing CPU performance governor service..."
+# 6. Remove CPU Performance Governor service
+echo "[6/11] Removing CPU performance service..."
 sudo systemctl stop cpu_performance.service || true
 sudo systemctl disable cpu_performance.service || true
 sudo rm -f /etc/systemd/system/cpu_performance.service
 
-# 7. Remove MGLRU tweaks
-echo "[7/13] Removing MGLRU configuration..."
+# 7. Remove MGLRU config
+echo "[7/11] Removing MGLRU configuration..."
 sudo rm -f /etc/tmpfiles.d/mglru.conf
 
 # 8. Remove memlock limits
-echo "[8/13] Removing memlock limits..."
+echo "[8/11] Removing memlock limits..."
 sudo rm -f /etc/security/limits.d/memlock.conf
 
-# 9. Remove ntsync kernel module auto-load
-echo "[9/13] Removing ntsync module configuration..."
+# 9. Remove ntsync module load
+echo "[9/11] Removing ntsync module configuration..."
 sudo rm -f /etc/modules-load.d/ntsync.conf
 
-# 10. Re-enable CPU security mitigations (if applied)
+# 10. Revert CPU security mitigations in GRUB
 GRUB_FILE="/etc/default/grub"
 if grep -q "mitigations=off" "$GRUB_FILE"; then
-    echo "[10/13] Re-enabling CPU security mitigations in GRUB..."
+    echo "[10/11] Re-enabling CPU security mitigations..."
     sudo sed -i 's/mitigations=off //' "$GRUB_FILE"
     sudo grub-mkconfig -o /boot/efi/EFI/steamos/grub.cfg || echo "Warning: grub-mkconfig failed."
+else
+    echo "[10/11] No mitigation changes found in GRUB."
 fi
 
-# 11. Final system reload
-echo "[11/13] Reloading system settings..."
+# 11. Remove THP Disable Service
+echo "[11/11] Removing THP disable service..."
+sudo systemctl stop disable-thp.service || true
+sudo systemctl disable disable-thp.service || true
+sudo rm -f /etc/systemd/system/disable-thp.service
+
+# Finalizing
+echo "=== Cleanup complete ==="
 sudo systemctl daemon-reload
 sudo systemctl daemon-reexec
 sudo sysctl --system
 
-# 12. Re-enable Read-only filesystem
-echo "[12/13] Re-enabling SteamOS readonly mode..."
-sudo steamos-readonly enable
+# Optional: Re-enable readonly
+read -p "Would you like to re-enable SteamOS Read-only mode? [y/N]: " RE_ENABLE
+if [[ "$RE_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    sudo steamos-readonly enable
+fi
 
-echo "[13/13] Revert complete. Please reboot your Steam Deck to ensure all changes (especially ZRAM and GRUB) are active."
+echo "Revert finished. Please REBOOT to apply all changes (especially ZRAM and GRUB)."
