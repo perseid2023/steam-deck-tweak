@@ -1,15 +1,16 @@
 #!/bin/bash
 set -e
 
-echo "=== Reverting Performance Tweaks & Setting ZRAM to RAM/2 ==="
+echo "=== Reverting Performance Tweaks & Reconfiguring zRAM ==="
 
-# 1. Disable readonly filesystem to allow cleanup
-echo "[1/11] Disabling SteamOS readonly mode..."
-sudo steamos-readonly disable
+# 1. Re-enable readonly filesystem (Standard SteamOS behavior)
+echo "[1/10] Enabling SteamOS readonly mode..."
+sudo steamos-readonly enable
 
-# 2. Update ZRAM instead of deleting (Set to RAM/2)
+# 2. Reconfigure zram-generator to RAM/2
 ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
-echo "[2/11] Updating ZRAM configuration to RAM/2..."
+echo "[2/10] Adjusting zram-generator to ram/2..."
+sudo steamos-readonly disable # Need to disable briefly to edit /usr
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
 zram-size = ram / 2
@@ -17,72 +18,47 @@ compression-algorithm = zstd
 swap-priority = 100
 fs-type = swap
 EOF
+sudo steamos-readonly enable
 
-# 3. Disable and remove ZSWAP service
-echo "[3/11] Removing ZSWAP service..."
-sudo systemctl stop zswap-configure.service || true
-sudo systemctl disable zswap-configure.service || true
-sudo rm -f /etc/systemd/system/zswap-configure.service
-
-# 4. Remove custom Swapfile
-SWAPFILE="/home/swapfile2"
-if [ -f "$SWAPFILE" ]; then
-    echo "[4/11] Removing 8GB swapfile..."
-    sudo swapoff "$SWAPFILE" || true
-    sudo rm -f "$SWAPFILE"
-    sudo sed -i "\|$SWAPFILE|d" /etc/fstab
-else
-    echo "[4/11] Custom swapfile not found, skipping."
-fi
-
-# 5. Revert Swappiness (Back to default 60 or just remove custom file)
-echo "[5/11] Removing custom swappiness config..."
+# 3. Restore Default Swappiness
+# Removing the custom conf file returns it to the system default (usually 60)
+echo "[3/10] Removing custom swappiness configuration..."
 sudo rm -f /etc/sysctl.d/99-swappiness.conf
 
-# 6. Remove CPU Performance Governor service
-echo "[6/11] Removing CPU performance service..."
-sudo systemctl stop cpu_performance.service || true
+# 4. Remove CPU performance service
+echo "[4/10] Disabling and removing CPU performance service..."
 sudo systemctl disable cpu_performance.service || true
 sudo rm -f /etc/systemd/system/cpu_performance.service
 
-# 7. Remove MGLRU config
-echo "[7/11] Removing MGLRU configuration..."
+# 5. Remove MGLRU configuration
+echo "[5/10] Removing MGLRU tweaks..."
 sudo rm -f /etc/tmpfiles.d/mglru.conf
 
-# 8. Remove memlock limits
-echo "[8/11] Removing memlock limits..."
+# 6. Remove memlock limits
+echo "[6/10] Removing custom memlock limits..."
 sudo rm -f /etc/security/limits.d/memlock.conf
 
-# 9. Remove ntsync module load
-echo "[9/11] Removing ntsync module configuration..."
+# 7. Disable ntsync module loading
+echo "[7/10] Removing ntsync from auto-load..."
 sudo rm -f /etc/modules-load.d/ntsync.conf
 
-# 10. Revert CPU security mitigations in GRUB
+# 8. Re-enable CPU security mitigations (If they were disabled)
+echo "[8/10] Re-enabling CPU security mitigations..."
 GRUB_FILE="/etc/default/grub"
 if grep -q "mitigations=off" "$GRUB_FILE"; then
-    echo "[10/11] Re-enabling CPU security mitigations..."
     sudo sed -i 's/mitigations=off //' "$GRUB_FILE"
     sudo grub-mkconfig -o /boot/efi/EFI/steamos/grub.cfg || echo "Warning: grub-mkconfig failed."
-else
-    echo "[10/11] No mitigation changes found in GRUB."
 fi
 
-# 11. Remove THP Disable Service
-echo "[11/11] Removing THP disable service..."
+# 9. Re-enable Transparent Huge Pages (THP)
+echo "[9/10] Removing service to disable THP (Restoring default)..."
 sudo systemctl stop disable-thp.service || true
 sudo systemctl disable disable-thp.service || true
 sudo rm -f /etc/systemd/system/disable-thp.service
 
-# Finalizing
-echo "=== Cleanup complete ==="
+# 10. Reload and Apply
+echo "[10/10] Reloading system configuration..."
 sudo systemctl daemon-reload
-sudo systemctl daemon-reexec
 sudo sysctl --system
 
-# Optional: Re-enable readonly
-read -p "Would you like to re-enable SteamOS Read-only mode? [y/N]: " RE_ENABLE
-if [[ "$RE_ENABLE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    sudo steamos-readonly enable
-fi
-
-echo "Revert finished. Please REBOOT to apply all changes (especially ZRAM and GRUB)."
+echo "=== Revert complete. Please reboot your Steam Deck for all changes to take effect. ==="
