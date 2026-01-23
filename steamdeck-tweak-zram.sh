@@ -4,12 +4,20 @@ set -e
 echo "=== SteamOS ZRAM + Performance Tweaks Setup ==="
 
 # 1. Disable readonly filesystem
-echo "[1/13] Disabling SteamOS readonly mode..."
+echo "[1/14] Disabling SteamOS readonly mode..."
 sudo steamos-readonly disable
 
-# 2. Configure zram-generator
+# 2. Disable and Remove ZSWAP Service
+# Added here to ensure ZSWAP is cleared before ZRAM/Swapfile configuration
+echo "[2/14] Removing zswap configuration service..."
+ZSWAP_SERVICE="/etc/systemd/system/zswap-configure.service"
+sudo systemctl stop zswap-configure.service || true
+sudo systemctl disable zswap-configure.service || true
+sudo rm -f "$ZSWAP_SERVICE"
+
+# 3. Configure zram-generator
 ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
-echo "[2/13] Writing zram-generator configuration..."
+echo "[3/14] Writing zram-generator configuration..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
 zram-size = ram/2
@@ -18,39 +26,39 @@ swap-priority = 100
 fs-type = swap
 EOF
 
-# 3. Create swapfile
+# 4. Create swapfile
 SWAPFILE="/home/swapfile2"
 if [ ! -f "$SWAPFILE" ]; then
-    echo "[3/13] Creating 8GB swapfile..."
+    echo "[4/14] Creating 8GB swapfile..."
     sudo dd if=/dev/zero of="$SWAPFILE" bs=1G count=8 status=progress
     sudo chmod 600 "$SWAPFILE"
     sudo mkswap "$SWAPFILE"
 else
-    echo "[3/13] Swapfile already exists, skipping creation."
+    echo "[4/14] Swapfile already exists, skipping creation."
 fi
 
-# 4. Enable swapfile
-echo "[4/13] Enabling swapfile..."
+# 5. Enable swapfile
+echo "[5/14] Enabling swapfile..."
 sudo swapon "$SWAPFILE" || true
 
-# 5. Make swapfile persistent
+# 6. Make swapfile persistent
 FSTAB_LINE="$SWAPFILE none swap sw 0 0"
 if ! grep -q "$SWAPFILE" /etc/fstab; then
-    echo "[5/13] Adding swapfile to /etc/fstab..."
+    echo "[6/14] Adding swapfile to /etc/fstab..."
     echo "$FSTAB_LINE" | sudo tee -a /etc/fstab > /dev/null
 else
-    echo "[5/13] Swapfile already in /etc/fstab."
+    echo "[6/14] Swapfile already in /etc/fstab."
 fi
 
-# 6. Configure swappiness
+# 7. Configure swappiness
 SYSCTL_CONF="/etc/sysctl.d/99-swappiness.conf"
-echo "[6/13] Setting vm.swappiness=1..."
+echo "[7/14] Setting vm.swappiness=1..."
 sudo tee "$SYSCTL_CONF" > /dev/null <<EOF
 vm.swappiness=1
 EOF
 
-# 7. CPU performance governor service
-echo "[7/13] Creating CPU performance governor service..."
+# 8. CPU performance governor service
+echo "[8/14] Creating CPU performance governor service..."
 sudo tee /etc/systemd/system/cpu_performance.service > /dev/null <<EOF
 [Unit]
 Description=CPU performance governor
@@ -61,31 +69,31 @@ ExecStart=/usr/bin/cpupower frequency-set -g performance
 WantedBy=multi-user.target
 EOF
 
-# 8. Enable CPU performance service
-echo "[8/13] Enabling CPU performance service..."
+# 9. Enable CPU performance service
+echo "[9/14] Enabling CPU performance service..."
 sudo systemctl daemon-reload
 sudo systemctl enable cpu_performance.service
 
-# 9. Configure MGLRU
-echo "[9/13] Configuring MGLRU..."
+# 10. Configure MGLRU
+echo "[10/14] Configuring MGLRU..."
 sudo tee /etc/tmpfiles.d/mglru.conf > /dev/null <<EOF
 w /sys/kernel/mm/lru_gen/enabled - - - - 7
 w /sys/kernel/mm/lru_gen/min_ttl_ms - - - - 0
 EOF
 
-# 10. Configure memlock limits
-echo "[10/13] Configuring memlock limits..."
+# 11. Configure memlock limits
+echo "[11/14] Configuring memlock limits..."
 sudo tee /etc/security/limits.d/memlock.conf > /dev/null <<EOF
 * hard memlock 2147484
 * soft memlock 2147484
 EOF
 
-# 11. Enable ntsync kernel module
-echo "[11/13] Enabling ntsync kernel module..."
+# 12. Enable ntsync kernel module
+echo "[12/14] Enabling ntsync kernel module..."
 echo ntsync | sudo tee /etc/modules-load.d/ntsync.conf > /dev/null
 
-# 12. Disable CPU security mitigations
-echo "[12/13] OPTIONAL: Disable CPU security mitigations"
+# 13. Disable CPU security mitigations
+echo "[13/14] OPTIONAL: Disable CPU security mitigations"
 read -r -p "Disable mitigations (mitigations=off)? [y/N]: " MITIGATIONS_CHOICE
 
 if [[ "$MITIGATIONS_CHOICE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
@@ -99,8 +107,8 @@ if [[ "$MITIGATIONS_CHOICE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     fi
 fi
 
-# 13. Disable Transparent Huge Pages (THP)
-echo "[13/13] Configuring service to disable Transparent Huge Pages (THP)..."
+# 14. Disable Transparent Huge Pages (THP)
+echo "[14/14] Configuring service to disable Transparent Huge Pages (THP)..."
 THP_SERVICE="/etc/systemd/system/disable-thp.service"
 
 sudo tee "$THP_SERVICE" > /dev/null <<EOF
