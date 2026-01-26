@@ -146,5 +146,6 @@ fi
 echo "[15/15] Reloading services..."
 sudo systemctl daemon-reexec
 sudo sysctl --system
-
+echo "THP status:"
+cat /sys/kernel/mm/transparent_hugepage/enabled
 echo "=== Setup complete. ==="
