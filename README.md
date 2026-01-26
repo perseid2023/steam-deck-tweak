@@ -17,4 +17,5 @@ check zswap : `grep -r . /sys/module/zswap/parameters/enabled` and `grep -r . /s
 check swappiness : `sysctl vm.swappiness`  
 check if ntsync kernel module is loaded : `lsmod | grep ntsync`  
 check if a game is using ntsync : `lsof /dev/ntsync`  
+check transparent huge pages status : `cat /sys/kernel/mm/transparent_hugepage/enabled`
 
