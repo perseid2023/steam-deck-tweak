@@ -4,12 +4,12 @@ set -e
 echo "=== SteamOS ZRAM (disabled) + ZSWAP + Swapfile + Performance Tweaks Setup ==="
 
 # 1. Disable readonly filesystem
-echo "[1/15] Disabling SteamOS readonly mode..."
+echo "[1/12] Disabling SteamOS readonly mode..."
 sudo steamos-readonly disable
 
 # 2. Configure zram-generator (DISABLE ZRAM)
 ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
-echo "[2/15] Writing zram-generator configuration (zram disabled)..."
+echo "[2/12] Writing zram-generator configuration (zram disabled)..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
 zram-size = 0
@@ -19,7 +19,7 @@ fs-type = swap
 EOF
 
 # 3. Enable ZSWAP (Using Systemd Service for Persistence)
-echo "[3/15] Configuring zswap via systemd service..."
+echo "[3/12] Configuring zswap via systemd service..."
 ZSWAP_SERVICE="/etc/systemd/system/zswap-configure.service"
 sudo tee "$ZSWAP_SERVICE" > /dev/null <<EOF
 [Unit]
@@ -45,71 +45,54 @@ sudo systemctl start zswap-configure.service
 # 4. Create swapfile
 SWAPFILE="/home/swapfile2"
 if [ ! -f "$SWAPFILE" ]; then
-    echo "[4/15] Creating 8GB swapfile..."
+    echo "[4/12] Creating 8GB swapfile..."
     sudo dd if=/dev/zero of="$SWAPFILE" bs=1G count=8 status=progress
     sudo chmod 600 "$SWAPFILE"
     sudo mkswap "$SWAPFILE"
 else
-    echo "[4/15] Swapfile already exists, skipping creation."
+    echo "[4/12] Swapfile already exists, skipping creation."
 fi
 
 # 5. Enable swapfile
-echo "[5/15] Enabling swapfile..."
+echo "[5/12] Enabling swapfile..."
 sudo swapon "$SWAPFILE" || true
 
 # 6. Make swapfile persistent
 FSTAB_LINE="$SWAPFILE none swap sw 0 0"
 if ! grep -q "$SWAPFILE" /etc/fstab; then
-    echo "[6/15] Adding swapfile to /etc/fstab..."
+    echo "[6/12] Adding swapfile to /etc/fstab..."
     echo "$FSTAB_LINE" | sudo tee -a /etc/fstab > /dev/null
 else
-    echo "[6/15] Swapfile already in /etc/fstab."
+    echo "[6/12] Swapfile already in /etc/fstab."
 fi
 
 # 7. Configure swappiness
 SYSCTL_CONF="/etc/sysctl.d/99-swappiness.conf"
-echo "[7/15] Setting vm.swappiness=50..."
+echo "[7/12] Setting vm.swappiness=50..."
 sudo tee "$SYSCTL_CONF" > /dev/null <<EOF
 vm.swappiness=50
 EOF
 
-# 8. CPU performance governor service
-echo "[8/15] Creating CPU performance governor service..."
-sudo tee /etc/systemd/system/cpu_performance.service > /dev/null <<EOF
-[Unit]
-Description=CPU performance governor
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/cpupower frequency-set -g performance
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 9. Enable CPU performance service
-echo "[9/15] Enabling CPU performance service..."
-sudo systemctl daemon-reload
-sudo systemctl enable cpu_performance.service
-
-# 10. Configure MGLRU
-echo "[10/15] Configuring MGLRU..."
+# 8. Configure MGLRU
+echo "[8/12] Configuring MGLRU..."
 sudo tee /etc/tmpfiles.d/mglru.conf > /dev/null <<EOF
 w /sys/kernel/mm/lru_gen/enabled - - - - 7
 w /sys/kernel/mm/lru_gen/min_ttl_ms - - - - 0
 EOF
 
-# 11. Configure memlock limits
-echo "[11/15] Configuring memlock limits..."
+# 9. Configure memlock limits
+echo "[9/12] Configuring memlock limits..."
 sudo tee /etc/security/limits.d/memlock.conf > /dev/null <<EOF
 * hard memlock 2147484
 * soft memlock 2147484
 EOF
 
-# 12. Enable ntsync kernel module
-echo "[12/15] Enabling ntsync kernel module..."
+# 10. Enable ntsync kernel module
+echo "[10/12] Enabling ntsync kernel module..."
 echo ntsync | sudo tee /etc/modules-load.d/ntsync.conf > /dev/null
 
-# 13. Disable Transparent Huge Pages (THP)
-echo "[13/15] Configuring service to disable Transparent Huge Pages (THP)..."
+# 11. Disable Transparent Huge Pages (THP)
+echo "[11/12] Configuring service to disable Transparent Huge Pages (THP)..."
 THP_SERVICE="/etc/systemd/system/disable-thp.service"
 sudo tee "$THP_SERVICE" > /dev/null <<EOF
 [Unit]
@@ -129,9 +112,9 @@ EOF
 sudo systemctl enable disable-thp.service
 sudo systemctl start disable-thp.service
 
-# 14. Disable CPU security mitigations
+# 12. Disable CPU security mitigations
 echo
-echo "[14/15] OPTIONAL: Disable CPU security mitigations"
+echo "[12/12] OPTIONAL: Disable CPU security mitigations"
 read -r -p "Disable mitigations (mitigations=off)? [y/N]: " MITIGATIONS_CHOICE
 if [[ "$MITIGATIONS_CHOICE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     GRUB_FILE="/etc/default/grub"
@@ -142,8 +125,8 @@ if [[ "$MITIGATIONS_CHOICE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     fi
 fi
 
-# 15. Reload and Status
-echo "[15/15] Reloading services..."
+# Final Reload and Status
+echo "Reloading services..."
 sudo systemctl daemon-reexec
 sudo sysctl --system
 echo "THP status:"
