@@ -4,11 +4,11 @@ set -e
 echo "=== SteamOS ZRAM + Performance Tweaks Setup ==="
 
 # 1. Disable readonly filesystem
-echo "[1/14] Disabling SteamOS readonly mode..."
+echo "[1/11] Disabling SteamOS readonly mode..."
 sudo steamos-readonly disable
 
 # 2. Disable and Remove ZSWAP Service
-echo "[2/14] Removing zswap configuration service..."
+echo "[2/11] Removing zswap configuration service..."
 ZSWAP_SERVICE="/etc/systemd/system/zswap-configure.service"
 sudo systemctl stop zswap-configure.service || true
 sudo systemctl disable zswap-configure.service || true
@@ -16,7 +16,7 @@ sudo rm -f "$ZSWAP_SERVICE"
 
 # 3. Configure zram-generator
 ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
-echo "[3/14] Writing zram-generator configuration..."
+echo "[3/11] Writing zram-generator configuration..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
 zram-size = 4000
@@ -28,71 +28,54 @@ EOF
 # 4. Create swapfile
 SWAPFILE="/home/swapfile2"
 if [ ! -f "$SWAPFILE" ]; then
-    echo "[4/14] Creating 8GB swapfile..."
+    echo "[4/11] Creating 8GB swapfile..."
     sudo dd if=/dev/zero of="$SWAPFILE" bs=1G count=8 status=progress
     sudo chmod 600 "$SWAPFILE"
     sudo mkswap "$SWAPFILE"
 else
-    echo "[4/14] Swapfile already exists, skipping creation."
+    echo "[4/11] Swapfile already exists, skipping creation."
 fi
 
 # 5. Enable swapfile
-echo "[5/14] Enabling swapfile..."
+echo "[5/11] Enabling swapfile..."
 sudo swapon "$SWAPFILE" || true
 
 # 6. Make swapfile persistent
 FSTAB_LINE="$SWAPFILE none swap sw 0 0"
 if ! grep -q "$SWAPFILE" /etc/fstab; then
-    echo "[6/14] Adding swapfile to /etc/fstab..."
+    echo "[6/11] Adding swapfile to /etc/fstab..."
     echo "$FSTAB_LINE" | sudo tee -a /etc/fstab > /dev/null
 else
-    echo "[6/14] Swapfile already in /etc/fstab."
+    echo "[6/11] Swapfile already in /etc/fstab."
 fi
 
 # 7. Configure swappiness
 SYSCTL_CONF="/etc/sysctl.d/99-swappiness.conf"
-echo "[7/14] Setting vm.swappiness=50..."
+echo "[7/11] Setting vm.swappiness=50..."
 sudo tee "$SYSCTL_CONF" > /dev/null <<EOF
 vm.swappiness=50
 EOF
 
-# 8. CPU performance governor service
-echo "[8/14] Creating CPU performance governor service..."
-sudo tee /etc/systemd/system/cpu_performance.service > /dev/null <<EOF
-[Unit]
-Description=CPU performance governor
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/cpupower frequency-set -g performance
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 9. Enable CPU performance service
-echo "[9/14] Enabling CPU performance service..."
-sudo systemctl daemon-reload
-sudo systemctl enable cpu_performance.service
-
-# 10. Configure MGLRU
-echo "[10/14] Configuring MGLRU..."
+# 8. Configure MGLRU
+echo "[8/11] Configuring MGLRU..."
 sudo tee /etc/tmpfiles.d/mglru.conf > /dev/null <<EOF
 w /sys/kernel/mm/lru_gen/enabled - - - - 7
 w /sys/kernel/mm/lru_gen/min_ttl_ms - - - - 0
 EOF
 
-# 11. Configure memlock limits
-echo "[11/14] Configuring memlock limits..."
+# 9. Configure memlock limits
+echo "[9/11] Configuring memlock limits..."
 sudo tee /etc/security/limits.d/memlock.conf > /dev/null <<EOF
 * hard memlock 2147484
 * soft memlock 2147484
 EOF
 
-# 12. Enable ntsync kernel module
-echo "[12/14] Enabling ntsync kernel module..."
+# 10. Enable ntsync kernel module
+echo "[10/11] Enabling ntsync kernel module..."
 echo ntsync | sudo tee /etc/modules-load.d/ntsync.conf > /dev/null
 
-# 13. Disable CPU security mitigations
-echo "[13/14] OPTIONAL: Disable CPU security mitigations"
+# 11. Disable CPU security mitigations
+echo "[11/11] OPTIONAL: Disable CPU security mitigations"
 read -r -p "Disable mitigations (mitigations=off)? [y/N]: " MITIGATIONS_CHOICE
 
 if [[ "$MITIGATIONS_CHOICE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
@@ -106,8 +89,8 @@ if [[ "$MITIGATIONS_CHOICE" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     fi
 fi
 
-# 14. Disable Transparent Huge Pages (THP)
-echo "[14/14] Configuring service to disable Transparent Huge Pages (THP)..."
+# 12. Disable Transparent Huge Pages (THP)
+echo "[12/12] Configuring service to disable Transparent Huge Pages (THP)..."
 THP_SERVICE="/etc/systemd/system/disable-thp.service"
 
 sudo tee "$THP_SERVICE" > /dev/null <<EOF
