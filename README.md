@@ -4,7 +4,6 @@ do not use this tweak ! it will make your steam deck slow and crash often !
 - enable zswap
 - add an 8GB swap file
 - set swappiness to 50
-- set cpu governor to performance
 - enable MGLRU
 - configure memlock limits to 2GB
 - enable ntsync kernel module 
