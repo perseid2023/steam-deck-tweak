@@ -28,12 +28,20 @@ EOF
 # 4. Create swapfile
 SWAPFILE="/home/swapfile2"
 if [ ! -f "$SWAPFILE" ]; then
-    echo "[4/11] Creating 8GB swapfile..."
-    sudo dd if=/dev/zero of="$SWAPFILE" bs=1G count=8 status=progress
+    echo "[4/12] Creating 8GB swapfile..."
+
+    # Try fallocate first (fast, no I/O)
+    if sudo fallocate -l 8G "$SWAPFILE"; then
+        echo "[4/12] Swapfile created with fallocate."
+    else
+        echo "[4/12] fallocate failed, falling back to dd..."
+        sudo dd if=/dev/zero of="$SWAPFILE" bs=1M count=8192 status=progress
+    fi
+
     sudo chmod 600 "$SWAPFILE"
     sudo mkswap "$SWAPFILE"
 else
-    echo "[4/11] Swapfile already exists, skipping creation."
+    echo "[4/12] Swapfile already exists, skipping creation."
 fi
 
 # 5. Enable swapfile
