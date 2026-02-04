@@ -44,13 +44,9 @@ if [ ! -f "$SWAPFILE" ]; then
         sudo chattr +C "$SWAPFILE"
     fi
 
-    # Try fallocate first (fast, no I/O)
-    if sudo fallocate -l 8G "$SWAPFILE"; then
-        echo "[4/12] Swapfile created with fallocate."
-    else
-        echo "[4/12] fallocate failed, falling back to dd..."
-        sudo dd if=/dev/zero of="$SWAPFILE" bs=1M count=8192 status=progress
-    fi
+    # Use fallocate only
+    sudo fallocate -l 8G "$SWAPFILE"
+    echo "[4/12] Swapfile created with fallocate."
 
     sudo chmod 600 "$SWAPFILE"
     sudo mkswap "$SWAPFILE"
