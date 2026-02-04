@@ -44,27 +44,9 @@ sudo systemctl start zswap-configure.service
 
 # 4. Create swapfile
 SWAPFILE="/home/swapfile2"
-
-# Check filesystem type for /home
-HOME_FS_TYPE=$(df -T /home | tail -1 | awk '{print $2}')
-
-if [ "$HOME_FS_TYPE" = "btrfs" ]; then
-    echo "[4/12] /home is on btrfs. Swapfile will be created with CoW disabled."
-fi
-
 if [ ! -f "$SWAPFILE" ]; then
     echo "[4/12] Creating 8GB swapfile..."
-
-    # For btrfs, disable CoW on the file
-    if [ "$HOME_FS_TYPE" = "btrfs" ]; then
-        sudo touch "$SWAPFILE"
-        sudo chattr +C "$SWAPFILE"
-    fi
-
-    # Use fallocate only
-    sudo fallocate -l 8G "$SWAPFILE"
-    echo "[4/12] Swapfile created with fallocate."
-
+    sudo dd if=/dev/zero of="$SWAPFILE" bs=1G count=8 status=progress
     sudo chmod 600 "$SWAPFILE"
     sudo mkswap "$SWAPFILE"
 else
