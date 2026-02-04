@@ -46,7 +46,15 @@ sudo systemctl start zswap-configure.service
 SWAPFILE="/home/swapfile2"
 if [ ! -f "$SWAPFILE" ]; then
     echo "[4/12] Creating 8GB swapfile..."
-    sudo dd if=/dev/zero of="$SWAPFILE" bs=1G count=8 status=progress
+
+    # Try fallocate first (fast, no I/O)
+    if sudo fallocate -l 8G "$SWAPFILE"; then
+        echo "[4/12] Swapfile created with fallocate."
+    else
+        echo "[4/12] fallocate failed, falling back to dd..."
+        sudo dd if=/dev/zero of="$SWAPFILE" bs=1M count=8192 status=progress
+    fi
+
     sudo chmod 600 "$SWAPFILE"
     sudo mkswap "$SWAPFILE"
 else
