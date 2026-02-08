@@ -19,7 +19,7 @@ ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
 echo "[3/12] Writing zram-generator configuration..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
-zram-size = 8000
+zram-size = ram
 compression-algorithm = zstd
 swap-priority = 100
 fs-type = swap
@@ -39,9 +39,9 @@ sudo sed -i "\|/home/swapfile2|d" /etc/fstab
 
 # 6. Configure swappiness
 SYSCTL_CONF="/etc/sysctl.d/99-swappiness.conf"
-echo "[6/12] Setting vm.swappiness=50..."
+echo "[6/12] Setting vm.swappiness..."
 sudo tee "$SYSCTL_CONF" > /dev/null <<EOF
-vm.swappiness=50
+vm.swappiness=99
 EOF
 
 # 7. Configure MGLRU
