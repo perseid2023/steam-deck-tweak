@@ -20,7 +20,7 @@ echo "[3/13] Writing zram-generator configuration..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
 zram-size = ram
-compression-algorithm = zstd
+compression-algorithm = lz4
 swap-priority = 100
 fs-type = swap
 EOF
