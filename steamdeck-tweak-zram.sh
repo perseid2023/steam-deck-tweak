@@ -19,7 +19,7 @@ ZRAM_CONF="/usr/lib/systemd/zram-generator.conf"
 echo "[3/13] Writing zram-generator configuration..."
 sudo tee "$ZRAM_CONF" > /dev/null <<EOF
 [zram0]
-zram-size = ram
+zram-size = ram/2
 compression-algorithm = lz4
 swap-priority = 100
 fs-type = swap
