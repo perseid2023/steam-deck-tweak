@@ -44,26 +44,44 @@ sudo systemctl start zswap-configure.service
 
 # 4. Create swapfile
 SWAPFILE="/home/swapfile2"
+# Get the filesystem type of the directory containing the swapfile
+FILESYSTEM=$(stat -f -c %T "$(dirname "$SWAPFILE")")
+
 if [ ! -f "$SWAPFILE" ]; then
-    echo "[4/12] Creating 8GB swapfile..."
-    sudo dd if=/dev/zero of="$SWAPFILE" bs=1G count=8 status=progress
+    echo "[4/13] Creating 16GB swapfile on $FILESYSTEM..."
+
+    if [ "$FILESYSTEM" == "btrfs" ]; then
+        # Btrfs requires the file to be 0-length when setting +C (No CoW)
+        sudo truncate -s 0 "$SWAPFILE"
+        sudo chattr +C "$SWAPFILE"
+        # Explicitly disable compression for this file
+        sudo btrfs property set "$SWAPFILE" compression none
+        # Now allocate the actual size
+        sudo fallocate -l 16G "$SWAPFILE"
+    else
+        # Standard allocation for Ext4/XFS/other
+        sudo fallocate -l 16G "$SWAPFILE" || sudo dd if=/dev/zero of="$SWAPFILE" bs=1G count=16 status=progress
+    fi
+
     sudo chmod 600 "$SWAPFILE"
     sudo mkswap "$SWAPFILE"
 else
-    echo "[4/12] Swapfile already exists, skipping creation."
+    echo "[4/13] Swapfile already exists, skipping creation."
 fi
 
 # 5. Enable swapfile
-echo "[5/12] Enabling swapfile..."
+echo "[5/13] Enabling swapfile..."
 sudo swapon "$SWAPFILE" || true
 
 # 6. Make swapfile persistent
 FSTAB_LINE="$SWAPFILE none swap sw 0 0"
 if ! grep -q "$SWAPFILE" /etc/fstab; then
-    echo "[6/12] Adding swapfile to /etc/fstab..."
+    echo "[6/13] Adding swapfile to /etc/fstab..."
+    # Note: On some immutable OSs, /etc/fstab is managed by the system.
+    # This command will work if /etc is writable (as it usually is via overlay).
     echo "$FSTAB_LINE" | sudo tee -a /etc/fstab > /dev/null
 else
-    echo "[6/12] Swapfile already in /etc/fstab."
+    echo "[6/13] Swapfile already in /etc/fstab."
 fi
 
 # 7. Configure swappiness
