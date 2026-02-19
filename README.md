@@ -3,7 +3,7 @@ do not use this tweak ! it will make your steam deck slow and crash often !
 for zswap version :  
 - disable zram
 - enable zswap
-- add an 8GB swap file
+- add an 16GB swap file
 - set swappiness to 50
 - enable MGLRU
 - configure memlock limits to 2GB
