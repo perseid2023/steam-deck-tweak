@@ -5,7 +5,6 @@ PROTON_PATH="/home/deck/.steam/steam/compatibilitytools.d/GE-Proton9-27"
 RUNTIME_BASE="$HOME/.steam/steam/steamapps/common/SteamLinuxRuntime_sniper"
 
 # 2. Path to the Wine prefix (Fixed shared location in /home/deck)
-# We use $HOME here. In Linux, this is the standard for /home/user
 PREFIX_PATH="$HOME/sharedprotonprefix"
 mkdir -p "$PREFIX_PATH"
 
@@ -13,9 +12,10 @@ mkdir -p "$PREFIX_PATH"
 export STEAM_COMPAT_CLIENT_INSTALL_PATH="$HOME/.steam/steam"
 export STEAM_COMPAT_DATA_PATH="$PREFIX_PATH"
 export PROTON_VERB="run"
+# Disables the Steam client integration for non-Steam apps/standalone use
+export PROTON_DISABLE_LSTEAMCLIENT=1
 
 # 4. Steam Runtime Integration (Auto-detect versioned folder)
-# This finds the "sniper_platform_..." folder automatically
 SNIPER_PLATFORM=$(ls -d "$RUNTIME_BASE"/sniper_platform_* 2>/dev/null | tail -n 1)
 export PRESSURE_VESSEL_RUNTIME_ARCHIVE="$SNIPER_PLATFORM/files"
 
