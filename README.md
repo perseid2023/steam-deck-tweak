@@ -1,6 +1,6 @@
 do not use this tweak ! it will make your steam deck slow and crash often !  
 
-steamdeck-tweak-zswap.sh :  
+**steamdeck-tweak-zswap.sh** :  
 - disable zram
 - enable zswap
 - add an 16GB swap file
@@ -20,7 +20,8 @@ check if a game is using ntsync : `lsof /dev/ntsync`
 check transparent huge pages status : `cat /sys/kernel/mm/transparent_hugepage/enabled`
 
 
-run-proton.sh  :  
+**run-proton.sh**  :  
+
 a lightweight bash utility to register GE-Proton as a system-wide handler for Windows executables (.exe) on Linux. This allows you to run Windows applications and games using the Steam Linux Runtime (Sniper) directly from your file manager.  
 requirement :  GE-Proton10-29 (or update the script path to match your version), Steam Linux Runtime Sniper Installed via Steam.
 installation : ./run-proton.sh --install
