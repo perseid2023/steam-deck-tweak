@@ -1,24 +1,37 @@
 #!/bin/bash
 
-# --- 0. SELF-INSTALLATION / UNINSTALLATION LOGIC ---
-DESKTOP_NAME="run-proton.desktop"
-DESKTOP_FILE="$HOME/.local/share/applications/$DESKTOP_NAME"
+# --- 0. CONFIGURATION & PATHS ---
+DESKTOP_DIR="$HOME/.local/share/applications"
+MAIN_DESKTOP="run-proton.desktop"
+# Define the extra shortcuts we want to manage
+EXTRA_DESKTOPS=("proton-explorer.desktop" "proton-winecfg.desktop" "proton-reboot.desktop")
+
+# Paths to Proton and the Steam Linux Runtime (SLR)
+PROTON_PATH="$HOME/.steam/steam/compatibilitytools.d/GE-Proton10-29"
+RUNTIME_BASE="$HOME/.steam/steam/steamapps/common/SteamLinuxRuntime_sniper"
+
+# Path to the Wine prefix
+PREFIX_PATH="$HOME/sharedprotonprefix"
+mkdir -p "$PREFIX_PATH"
+
+# --- 1. SELF-INSTALLATION / UNINSTALLATION LOGIC ---
 
 # UNINSTALL BLOCK
 if [[ "$1" == "--uninstall" ]]; then
     echo "Reverting installation..."
 
-    # 1. Remove the desktop entry
-    if [ -f "$DESKTOP_FILE" ]; then
-        rm "$DESKTOP_FILE"
-        echo "Removed: $DESKTOP_FILE"
-    fi
+    # Remove main runner
+    rm -f "$DESKTOP_DIR/$MAIN_DESKTOP"
 
-    # 2. Reset MIME associations (optional but clean)
-    # We don't necessarily set a new default, as the system will
-    # automatically fallback to the next available handler once this one is gone.
-    update-desktop-database "$HOME/.local/share/applications"
+    # Remove the 3 extra shortcuts
+    for file in "${EXTRA_DESKTOPS[@]}"; do
+        if [ -f "$DESKTOP_DIR/$file" ]; then
+            rm "$DESKTOP_DIR/$file"
+            echo "Removed: $file"
+        fi
+    done
 
+    update-desktop-database "$DESKTOP_DIR"
     echo "Uninstallation complete. .exe files will revert to system defaults."
     exit 0
 fi
@@ -26,11 +39,12 @@ fi
 # INSTALL BLOCK
 if [[ "$1" == "--install" ]] || [[ -z "$1" && -t 0 ]]; then
     SCRIPT_PATH=$(realpath "$0")
+    echo "Registering script and creating utility shortcuts..."
 
-    echo "Registering script as default .exe handler..."
+    mkdir -p "$DESKTOP_DIR"
 
-    mkdir -p "$(dirname "$DESKTOP_FILE")"
-    cat <<EOF > "$DESKTOP_FILE"
+    # A. Main EXE Runner
+    cat <<EOF > "$DESKTOP_DIR/$MAIN_DESKTOP"
 [Desktop Entry]
 Type=Application
 Name=Proton Runner
@@ -42,30 +56,60 @@ Categories=Game;
 MimeType=application/x-ms-dos-executable;application/x-msdownload;application/x-executable;
 EOF
 
-    chmod +x "$DESKTOP_FILE"
-    xdg-mime default "$DESKTOP_NAME" application/x-ms-dos-executable
-    xdg-mime default "$DESKTOP_NAME" application/x-msdownload
-    update-desktop-database "$HOME/.local/share/applications"
+    # B. Wine Explorer Shortcut
+    cat <<EOF > "$DESKTOP_DIR/proton-explorer.desktop"
+[Desktop Entry]
+Type=Application
+Name=Proton Explorer
+Comment=Open Wine File Browser for this prefix
+Exec="$SCRIPT_PATH" explorer
+Icon=folder-wine
+Terminal=false
+Categories=Utility;
+EOF
 
-    echo "Installation complete! You can now double-click .exe files."
+    # C. Winecfg Shortcut
+    cat <<EOF > "$DESKTOP_DIR/proton-winecfg.desktop"
+[Desktop Entry]
+Type=Application
+Name=Proton Config
+Comment=Change Wine settings for this prefix
+Exec="$SCRIPT_PATH" winecfg
+Icon=wine-winecfg
+Terminal=false
+Categories=Settings;
+EOF
+
+    # D. Wineboot (Kill) Shortcut
+    cat <<EOF > "$DESKTOP_DIR/proton-reboot.desktop"
+[Desktop Entry]
+Type=Application
+Name=Proton Kill/Reboot
+Comment=Simulate a reboot or kill hung processes
+Exec="$SCRIPT_PATH" wineboot -k
+Icon=system-reboot
+Terminal=false
+Categories=Utility;
+EOF
+
+    chmod +x "$DESKTOP_DIR"/*.desktop
+    xdg-mime default "$MAIN_DESKTOP" application/x-ms-dos-executable
+    xdg-mime default "$MAIN_DESKTOP" application/x-msdownload
+    update-desktop-database "$DESKTOP_DIR"
+
+    echo "Installation complete! Look for 'Proton Explorer', 'Proton Config', and 'Proton Kill' in your menu."
     exit 0
 fi
 
-# 1. Paths to Proton and the Steam Linux Runtime (SLR)
-PROTON_PATH="$HOME/.steam/steam/compatibilitytools.d/GE-Proton10-29"
-RUNTIME_BASE="$HOME/.steam/steam/steamapps/common/SteamLinuxRuntime_sniper"
+# --- 2. EXECUTION LOGIC ---
 
-# 2. Path to the Wine prefix
-PREFIX_PATH="$HOME/sharedprotonprefix"
-mkdir -p "$PREFIX_PATH"
-
-# 3. Environment Variables
+# Environment Variables
 export STEAM_COMPAT_CLIENT_INSTALL_PATH="$HOME/.steam/steam"
 export STEAM_COMPAT_DATA_PATH="$PREFIX_PATH"
 export PROTON_VERB="run"
 export PROTON_DISABLE_LSTEAMCLIENT=1
 
-# 4. Steam Runtime Integration
+# Steam Runtime Integration
 SNIPER_PLATFORM=$(ls -d "$RUNTIME_BASE"/sniper_platform_* 2>/dev/null | tail -n 1)
 export PRESSURE_VESSEL_RUNTIME_ARCHIVE="$SNIPER_PLATFORM/files"
 
@@ -77,6 +121,7 @@ if [ -z "$1" ]; then
 fi
 
 # --- SMART PATH HANDLING ---
+# If the first argument is an existing file, treat it as an EXE runner
 if [ -f "$1" ]; then
     EXE_PATH=$(realpath "$1")
     EXE_DIR=$(dirname "$EXE_PATH")
@@ -85,10 +130,11 @@ if [ -f "$1" ]; then
     shift
     SET_ARGS=("$EXE_PATH" "$@")
 else
-    SET_ARGS=("$@")
+    # Otherwise, treat arguments as direct wine commands (explorer, winecfg, etc.)
+    SET_ARGS=("${@}")
 fi
 
-# 5. Execute via the Runtime Entry Point
+# --- 3. EXECUTE VIA THE RUNTIME ENTRY POINT ---
 if [ -d "$RUNTIME_BASE" ]; then
     "$RUNTIME_BASE/run-in-sniper" -- "$PROTON_PATH/proton" run "${SET_ARGS[@]}"
 else
