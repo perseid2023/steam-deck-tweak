@@ -1,6 +1,6 @@
 do not use this tweak ! it will make your steam deck slow and crash often !  
 
-for zswap version :  
+steamdeck-tweak-zswap.sh :  
 - disable zram
 - enable zswap
 - add an 16GB swap file
