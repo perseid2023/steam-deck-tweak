@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 1. Paths to Proton and the Steam Linux Runtime (SLR)
-PROTON_PATH="/home/deck/.steam/steam/compatibilitytools.d/GE-Proton9-27"
+PROTON_PATH="/home/deck/.steam/steam/compatibilitytools.d/GE-Proton10-29"
 RUNTIME_BASE="$HOME/.steam/steam/steamapps/common/SteamLinuxRuntime_sniper"
 
 # 2. Path to the Wine prefix (Fixed shared location in /home/deck)
@@ -25,10 +25,21 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
+# --- FIX FOR SHORTCUTS/LINKS ---
+# Get the absolute path of the EXE and its parent directory
+EXE_PATH=$(realpath "$1")
+EXE_DIR=$(dirname "$EXE_PATH")
+
+# Change the working directory to the folder containing the EXE
+# This allows the game to find its local DLLs and data files.
+cd "$EXE_DIR" || exit
+# -------------------------------
+
 # 5. Execute via the Runtime Entry Point
 if [ -d "$RUNTIME_BASE" ]; then
-    "$RUNTIME_BASE/run-in-sniper" -- "$PROTON_PATH/proton" run "$@"
+    # We use "$EXE_PATH" to ensure the full path is passed to Proton
+    "$RUNTIME_BASE/run-in-sniper" -- "$PROTON_PATH/proton" run "$EXE_PATH"
 else
     echo "Warning: Steam Runtime not found at $RUNTIME_BASE. Attempting direct execution..."
-    "$PROTON_PATH/proton" run "$@"
+    "$PROTON_PATH/proton" run "$EXE_PATH"
 fi
