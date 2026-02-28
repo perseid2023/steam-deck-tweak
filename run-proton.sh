@@ -52,7 +52,7 @@ Comment=Run Windows EXEs via GE-Proton
 Exec="$SCRIPT_PATH" %f
 Icon=steam
 Terminal=false
-Categories=Game;
+Categories=Utility;
 MimeType=application/x-ms-dos-executable;application/x-msdownload;application/x-executable;
 EOF
 
@@ -77,7 +77,7 @@ Comment=Change Wine settings for this prefix
 Exec="$SCRIPT_PATH" winecfg
 Icon=wine-winecfg
 Terminal=false
-Categories=Settings;
+Categories=Utility;
 EOF
 
     # D. Wineboot (Kill) Shortcut
@@ -89,6 +89,18 @@ Comment=Simulate a reboot or kill hung processes
 Exec="$SCRIPT_PATH" wineboot -k
 Icon=system-reboot
 Terminal=false
+Categories=Utility;
+EOF
+
+# E. Proton Terminal Shortcut
+    cat <<EOF > "$DESKTOP_DIR/proton-terminal.desktop"
+[Desktop Entry]
+Type=Application
+Name=Proton Terminal
+Comment=Open a terminal inside the Proton environment
+Exec=bash -c "$SCRIPT_PATH cmd"
+Icon=utilities-terminal
+Terminal=true
 Categories=Utility;
 EOF
 
