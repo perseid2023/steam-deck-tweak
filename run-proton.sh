@@ -120,10 +120,10 @@ export STEAM_COMPAT_CLIENT_INSTALL_PATH="$HOME/.steam/steam"
 export STEAM_COMPAT_DATA_PATH="$PREFIX_PATH"
 export PROTON_VERB="run"
 export PROTON_DISABLE_LSTEAMCLIENT=1
-# Enable New WOW64 mode (Experimental in some Proton versions)
 export PROTON_USE_WOW64=1
-# REVERT TO GSTREAMER (Fixes video issues in some games)
 export PROTON_MEDIA_USE_GST=1
+export SDL_JOYSTICK_HIDAPI=0
+export SDL_HINT_JOYSTICK_HIDAPI=0
 
 # Steam Runtime Integration
 SNIPER_PLATFORM=$(ls -d "$RUNTIME_BASE"/sniper_platform_* 2>/dev/null | tail -n 1)
