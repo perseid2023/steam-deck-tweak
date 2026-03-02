@@ -3,8 +3,8 @@
 # --- 0. CONFIGURATION & PATHS ---
 DESKTOP_DIR="$HOME/.local/share/applications"
 MAIN_DESKTOP="run-proton.desktop"
-# Define the extra shortcuts we want to manage
-EXTRA_DESKTOPS=("proton-explorer.desktop" "proton-winecfg.desktop" "proton-reboot.desktop")
+# Added proton-terminal.desktop to this list so the loop finds and removes it
+EXTRA_DESKTOPS=("proton-explorer.desktop" "proton-winecfg.desktop" "proton-reboot.desktop" "proton-terminal.desktop")
 
 # Paths to Proton and the Steam Linux Runtime (SLR)
 PROTON_PATH="$HOME/.steam/steam/compatibilitytools.d/GE-Proton10-29"
@@ -23,7 +23,7 @@ if [[ "$1" == "--uninstall" ]]; then
     # Remove main runner
     rm -f "$DESKTOP_DIR/$MAIN_DESKTOP"
 
-    # Remove the 3 extra shortcuts
+    # Remove the extra shortcuts (Now includes terminal)
     for file in "${EXTRA_DESKTOPS[@]}"; do
         if [ -f "$DESKTOP_DIR/$file" ]; then
             rm "$DESKTOP_DIR/$file"
