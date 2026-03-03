@@ -3,8 +3,8 @@
 # --- 0. CONFIGURATION & PATHS ---
 DESKTOP_DIR="$HOME/.local/share/applications"
 MAIN_DESKTOP="run-proton.desktop"
-# Added proton-terminal.desktop to this list so the loop finds and removes it
-EXTRA_DESKTOPS=("proton-explorer.desktop" "proton-winecfg.desktop" "proton-reboot.desktop" "proton-terminal.desktop")
+
+EXTRA_DESKTOPS=("proton-explorer.desktop" "proton-winecfg.desktop" "proton-reboot.desktop" "proton-terminal.desktop" "proton-control.desktop")
 
 # Paths to Proton and the Steam Linux Runtime (SLR)
 PROTON_PATH="$HOME/.steam/steam/compatibilitytools.d/GE-Proton10-29"
@@ -104,12 +104,23 @@ Terminal=true
 Categories=Utility;
 EOF
 
+    cat <<EOF > "$DESKTOP_DIR/proton-control.desktop"
+[Desktop Entry]
+Type=Application
+Name=Proton Control Panel
+Comment=Open a Control Panel inside the Proton environment
+Exec=bash -c "$SCRIPT_PATH control"
+Icon=preferences-system
+Terminal=true
+Categories=Utility;
+EOF
+
     chmod +x "$DESKTOP_DIR"/*.desktop
     xdg-mime default "$MAIN_DESKTOP" application/x-ms-dos-executable
     xdg-mime default "$MAIN_DESKTOP" application/x-msdownload
     update-desktop-database "$DESKTOP_DIR"
 
-    echo "Installation complete! Look for 'Proton Explorer', 'Proton Config', and 'Proton Kill' in your menu."
+    echo "Installation complete!"
     exit 0
 fi
 
