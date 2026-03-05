@@ -98,9 +98,9 @@ EOF
 Type=Application
 Name=Proton Terminal
 Comment=Open a terminal inside the Proton environment
-Exec=bash -c "$SCRIPT_PATH cmd"
+Exec="$SCRIPT_PATH" cmd
 Icon=utilities-terminal
-Terminal=true
+Terminal=false
 Categories=Utility;
 EOF
 
@@ -109,9 +109,9 @@ EOF
 Type=Application
 Name=Proton Control Panel
 Comment=Open a Control Panel inside the Proton environment
-Exec=bash -c "$SCRIPT_PATH control"
+Exec="$SCRIPT_PATH" control
 Icon=preferences-system
-Terminal=true
+Terminal=false
 Categories=Utility;
 EOF
 
