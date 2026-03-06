@@ -13,16 +13,36 @@ PREFIX = "generated-launcher"
 
 os.makedirs(APPDIR, exist_ok=True)
 
+# --- NEW: Right-Click Menu Logic ---
+def make_menu(w):
+    global the_menu
+    the_menu = tk.Menu(w, tearoff=0)
+    the_menu.add_command(label="Cut")
+    the_menu.add_command(label="Copy")
+    the_menu.add_command(label="Paste")
+    the_menu.add_separator()
+    the_menu.add_command(label="Select All")
+
+def show_menu(e):
+    w = e.widget
+    the_menu.entryconfigure("Cut", command=lambda: w.event_generate("<<Cut>>"))
+    the_menu.entryconfigure("Copy", command=lambda: w.event_generate("<<Copy>>"))
+    the_menu.entryconfigure("Paste", command=lambda: w.event_generate("<<Paste>>"))
+    the_menu.entryconfigure("Select All", command=lambda: w.select_range(0, 'end'))
+    the_menu.tk_popup(e.x_root, e.y_root)
+
+# -----------------------------------
+
 def list_games():
     return [f[len(PREFIX)+1:-8] for f in os.listdir(APPDIR)
             if f.startswith(f"{PREFIX}-") and f.endswith(".desktop")]
 
 def add_game():
-    script = simpledialog.askstring("Desktop Launcher Generator", "Proton Script / Wine Binary:", initialvalue=DEFAULT_PROTON)
+    script = simpledialog.askstring("Desktop Launcher Generator", "Proton / Wine Binary Location:", initialvalue=DEFAULT_PROTON)
     if script is None: return
     name = simpledialog.askstring("Desktop Launcher Generator", "Game Name:")
     if name is None: return
-    exe = simpledialog.askstring("Desktop Launcher Generator", "Game EXE:")
+    exe = simpledialog.askstring("Desktop Launcher Generator", "Game EXE Location:")
     if exe is None: return
 
     if not script or not name or not exe:
@@ -159,6 +179,11 @@ def main_menu():
     root = tk.Tk()
     root.title("Desktop Launcher Generator")
     root.geometry("400x350")
+
+    # Initialize the menu
+    make_menu(root)
+    # Bind the menu to ALL Entry widgets (including simpledialogs)
+    root.bind_class("Entry", "<Button-3>", show_menu)
 
     tk.Button(root, text="Add Game Launcher", command=add_game, width=30).pack(pady=5)
     tk.Button(root, text="Edit Launcher", command=edit_game, width=30).pack(pady=5)
