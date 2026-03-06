@@ -10,7 +10,7 @@ SRC_FILES=(
     "60-steam-vr.rules"
 )
 
-DST_DIR="/etc/udev/rules.d"
+DST_DIR="/usr/lib/udev/rules.d"
 
 echo "Installing persistent udev rules to $DST_DIR ..."
 
