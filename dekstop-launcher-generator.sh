@@ -38,7 +38,7 @@ def list_games():
             if f.startswith(f"{PREFIX}-") and f.endswith(".desktop")]
 
 def add_game():
-    script = simpledialog.askstring("Desktop Launcher Generator", "Proton / Wine Binary Location:", initialvalue=DEFAULT_PROTON)
+    script = simpledialog.askstring("Desktop Launcher Generator", "Wine Binary / run-proton.sh Location:", initialvalue=DEFAULT_PROTON)
     if script is None: return
     name = simpledialog.askstring("Desktop Launcher Generator", "Game Name:")
     if name is None: return
