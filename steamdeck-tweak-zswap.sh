@@ -86,9 +86,9 @@ fi
 
 # 7. Configure swappiness
 SYSCTL_CONF="/etc/sysctl.d/99-swappiness.conf"
-echo "[7/12] Setting vm.swappiness=50..."
+echo "[7/12] Setting vm.swappiness=100..."
 sudo tee "$SYSCTL_CONF" > /dev/null <<EOF
-vm.swappiness=50
+vm.swappiness=100
 EOF
 
 # 8. Configure MGLRU
