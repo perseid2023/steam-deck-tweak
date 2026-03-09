@@ -90,6 +90,7 @@ class ProtonManager:
         ttk.Button(buttons, text="Browse Prefix Dir", command=self.open_prefix).pack(side="left", padx=6)
         ttk.Button(buttons, text="Browse Game Dir", command=self.open_game_dir).pack(side="left", padx=6)
         ttk.Button(buttons, text="Convert WMV", command=self.convert_wmv).pack(side="left", padx=6)
+        ttk.Button(buttons, text="Convert WMV Audio", command=self.convert_wmv_audio).pack(side="left", padx=6)
         ttk.Button(buttons, text="Delete Prefix", command=self.delete_prefix).pack(side="left", padx=6)
 
     # ---------------- Progress Window ----------------
@@ -97,7 +98,7 @@ class ProtonManager:
     def show_progress_window(self, total):
 
         self.progress_win = tk.Toplevel(self.root)
-        self.progress_win.title("WMV Conversion Progress")
+        self.progress_win.title("Conversion Progress")
         self.progress_win.geometry("700x400")
 
         self.progress_total = total
@@ -280,6 +281,149 @@ class ProtonManager:
             self.increment_progress()
 
         self.log_message("All conversions finished.")
+
+    # ---------------- WMV AUDIO Converter ----------------
+
+    def convert_wmv_audio(self):
+
+        item = self.get_selected()
+
+        if not item:
+            messagebox.showwarning("No Selection", "Select a game first.")
+            return
+
+        appid = item[0]
+
+        manifest = os.path.join(
+            os.path.dirname(self.compatdata_path.get()),
+            f"appmanifest_{appid}.acf"
+        )
+
+        if not os.path.exists(manifest):
+            messagebox.showerror("Error", "App manifest not found.")
+            return
+
+        installdir = None
+
+        try:
+            with open(manifest) as f:
+                for line in f:
+                    if '"installdir"' in line:
+                        installdir = line.split('"')[3]
+                        break
+        except:
+            pass
+
+        if not installdir:
+            messagebox.showerror("Error", "Game directory not found.")
+            return
+
+        game_dir = os.path.join(DEFAULT_STEAMAPPS, "common", installdir)
+
+        if not os.path.isdir(game_dir):
+            messagebox.showerror("Error", "Game directory does not exist.")
+            return
+
+        wmv_files = []
+
+        for root_dir, dirs, files in os.walk(game_dir):
+            for f in files:
+                if f.lower().endswith(".wmv"):
+                    wmv_files.append(os.path.join(root_dir, f))
+
+        if not wmv_files:
+            messagebox.showinfo("Convert WMV Audio", "No WMV files found.")
+            return
+
+        confirm = messagebox.askyesno(
+            "Convert WMV Audio",
+            f"Found {len(wmv_files)} WMV files.\nConvert audio to AAC?"
+        )
+
+        if not confirm:
+            return
+
+        self.show_progress_window(len(wmv_files))
+
+        thread = threading.Thread(
+            target=self.run_audio_conversion,
+            args=(wmv_files,),
+            daemon=True
+        )
+
+        thread.start()
+
+    def run_audio_conversion(self, files):
+
+        for input_file in files:
+
+            base = os.path.splitext(input_file)[0]
+            temp_mkv = base + ".mkv"
+            final_wmv = base + ".wmv"
+
+            try:
+
+                probe = subprocess.run(
+                    [
+                        "ffprobe",
+                        "-v", "error",
+                        "-select_streams", "a:0",
+                        "-show_entries", "stream=codec_name",
+                        "-of", "default=noprint_wrappers=1:nokey=1",
+                        input_file
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+
+                codec = probe.stdout.strip()
+
+                if codec == "aac":
+
+                    self.log_message(f"SKIP (already AAC): {input_file}")
+                    self.increment_progress()
+                    continue
+
+            except:
+                pass
+
+            self.log_message(f"Converting audio: {input_file}")
+
+            try:
+
+                process = subprocess.Popen(
+                    [
+                        "ffmpeg", "-y",
+                        "-i", input_file,
+                        "-map", "0",
+                        "-c:v", "copy",
+                        "-c:a", "aac",
+                        "-b:a", "128k",
+                        temp_mkv
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True
+                )
+
+                for line in process.stdout:
+                    self.log_message(line.strip())
+
+                process.wait()
+
+                os.remove(input_file)
+                os.rename(temp_mkv, final_wmv)
+
+                self.log_message("Finished\n")
+
+            except Exception as e:
+
+                self.log_message(f"ERROR: {e}")
+
+            self.increment_progress()
+
+        self.log_message("All audio conversions finished.")
 
     # ---------------- Prefix Tools ----------------
 
